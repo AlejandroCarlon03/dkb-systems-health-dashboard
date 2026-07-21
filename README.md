@@ -10,6 +10,8 @@ and exposed via REST (with a lightweight built-in web UI).
 > Portfolio project modeled on real systems the author integrates with in production, but built as
 > an independent, from-scratch service — not a copy of any internal tool.
 
+![History view — uptime, sample counts, and status timeline](docs/screenshot.png)
+
 ## Tech stack
 
 | | |
@@ -80,6 +82,29 @@ Example `/api/health/summary` response:
 }
 ```
 
+Example `/api/health/history?days=1` response:
+
+```json
+{
+  "days": 1,
+  "sampleCount": 24,
+  "upCount": 21,
+  "degradedCount": 3,
+  "downCount": 0,
+  "uptimePercent": 87.5,
+  "firstSampleAt": "2026-07-19T20:15:00.000Z",
+  "lastSampleAt": "2026-07-20T20:15:00.000Z",
+  "events": [
+    { "at": "2026-07-20T09:02:11.000Z", "from": "UP", "to": "DEGRADED" },
+    { "at": "2026-07-20T09:42:55.000Z", "from": "DEGRADED", "to": "UP" }
+  ],
+  "timeline": [
+    { "at": "2026-07-19T20:15:00.000Z", "status": "UP" },
+    { "at": "2026-07-20T09:02:11.000Z", "status": "DEGRADED" }
+  ]
+}
+```
+
 **Metric definitions:**
 - `unassignedAssets` — assets with no assignee, **excluding archived** (i.e. spare/available gear).
 - `overdueCheckouts` — checked-out assets whose expected check-in date has passed.
@@ -102,9 +127,16 @@ safe local-dev defaults:
 > or authenticate step is required — the API key alone is enough.
 
 Non-secret tuning (in `application.properties`): `dkb.snipeit.hardware-page-limit`,
-`dkb.odoo.recent-activity-days`, `dkb.polling.interval-ms`, `dkb.polling.initial-delay-ms`.
+`dkb.odoo.recent-activity-days`, `dkb.polling.interval-ms`, `dkb.polling.initial-delay-ms`,
+`dkb.history.retention-days` (how long persisted snapshots are kept). The server port
+(`SERVER_PORT`, default `8090`) and datasource URL (`JDBC_URL`, default a local file-based H2 DB)
+are also overridable via environment variable.
 
 ## Running locally
+
+**Prerequisites:** JDK 26 (or let the Gradle toolchain download one automatically) and Node.js
+(for the frontend build — see [Frontend](#frontend-react--typescript)). No local install of
+Gradle is required; use the bundled `./gradlew`.
 
 ```bash
 # Set credentials (bash)
@@ -125,10 +157,11 @@ $env:SNIPEIT_API_TOKEN = "xxxxx"
 ./gradlew bootRun
 ```
 
-Then open <http://localhost:8080/> for the UI, or:
+Then open <http://localhost:8090/> for the UI, or:
 
 ```bash
-curl http://localhost:8080/api/health/summary
+curl http://localhost:8090/api/health/summary
+curl http://localhost:8090/api/health/history?days=7
 ```
 
 With no credentials set, the app still starts and returns `status: DOWN` with the source errors
